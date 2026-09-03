@@ -1,0 +1,5 @@
+build*/
+Output/
+*.o
+*.so
+compile_commands.json
