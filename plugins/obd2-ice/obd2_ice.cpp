@@ -15,8 +15,7 @@
 // answer is younger than three of its own intervals; five unanswered
 // requests in a row mean the vehicle is gone and discovery starts over.
 #include "canproxy/plugin.h"
-#include "obd/CanChannel.h"
-#include "obd/J1979.h"
+#include "obd/J1979Client.h"
 #include "obd/Poller.h"
 
 #include <atomic>
@@ -50,10 +49,9 @@ struct Plugin {
     std::thread thread;
     std::atomic<bool> running{false};
 
-    obd::CanChannel ch;
+    obd::J1979Client client;
     obd::Poller poller;
     bool discovered = false;
-    uint32_t primaryEcu = 0;
     std::set<uint8_t> supported;
     std::map<uint8_t, double> values;
     uint32_t lamps = 0;
@@ -67,45 +65,6 @@ struct Plugin {
         std::vsnprintf(buf, sizeof buf, fmt, ap);
         va_end(ap);
         if (host.log) host.log(host.ctx, level, buf);
-    }
-
-    // Send one request and wait for the matching answer. Broadcast frames
-    // that arrive meanwhile are consumed. Returns true on a decoded answer.
-    bool request(uint8_t pid, int timeoutMs, obd::Response *out, uint32_t *from)
-    {
-        obd::Frame req;
-        req.id = obd::kRequestId;
-        req.dlc = 8;
-        obd::buildRequest(obd::kModeCurrentData, pid, req.data);
-        if (!ch.send(req))
-            return false;
-        const int64_t deadline = nowMs() + timeoutMs;
-        for (;;) {
-            const int64_t left = deadline - nowMs();
-            if (left <= 0)
-                return false;
-            obd::Frame f;
-            if (!ch.receive(f, static_cast<int>(left)))
-                return false;
-            if (telltaleId >= 0 && f.id == static_cast<uint32_t>(telltaleId)) {
-                onTelltales(f);
-                continue;
-            }
-            if (!obd::isResponseId(f.id))
-                continue;
-            auto r = obd::parseSingleFrame(f.data, f.dlc);
-            if (!r || r->mode != obd::kModeCurrentData + obd::kResponseOffset || r->pid != pid)
-                continue;
-            // First responder wins, then stick: once an ECU has answered us,
-            // other ECUs' answers to the broadcast request are ignored.
-            if (primaryEcu == 0)
-                primaryEcu = f.id;
-            else if (f.id != primaryEcu)
-                continue;
-            *out = *r;
-            *from = f.id;
-            return true;
-        }
     }
 
     void onTelltales(const obd::Frame &f)
@@ -123,25 +82,9 @@ struct Plugin {
     // holds while the values go unknown.
     bool discover()
     {
-        std::set<uint8_t> found;
-        primaryEcu = 0;
-        uint8_t base = obd::PID_SUPPORTED_00;
-        for (int block = 0; block < 7; block++) {
-            obd::Response r;
-            uint32_t from = 0;
-            if (!request(base, 300, &r, &from) || r.len < 4) {
-                if (block == 0)
-                    return false;           // nothing there
-                break;                      // chain ended early: fine
-            }
-            for (uint8_t pid : obd::supportedPidsFrom(base, r.data))
-                if (!obd::isSupportedPid(pid))
-                    found.insert(pid);
-            if (!obd::nextBlockAdvertised(r.data))
-                break;
-            base = static_cast<uint8_t>(base + 0x20);
-        }
-        supported = found;
+        if (!client.discover(300))
+            return false;
+        supported = client.supported();
         poller.clear();
         values.clear();
         auto want = [&](uint8_t pid, int64_t interval) {
@@ -161,8 +104,7 @@ struct Plugin {
             std::snprintf(b, sizeof b, " %02X", pid);
             list += b;
         }
-        logf(CANPROXY_LOG_INFO, "ECU 0x%03X advertises%s; polling %zu of them",
-             primaryEcu, list.c_str(), poller.empty() ? size_t(0) : size_t(supported.size()));
+        logf(CANPROXY_LOG_INFO, "ECU 0x%03X advertises%s", client.primaryEcu(), list.c_str());
         return true;
     }
 
@@ -225,15 +167,12 @@ struct Plugin {
 
             if (auto pid = poller.nextDue(now)) {
                 poller.markRequested(*pid, now);
-                obd::Response r;
-                uint32_t from = 0;
-                if (request(*pid, static_cast<int>(fastMs), &r, &from)) {
-                    if (auto v = obd::decode(*pid, r.data, r.len)) {
-                        values[*pid] = *v;
-                        poller.markAnswered(*pid, nowMs());
-                    }
+                double v = 0;
+                if (client.query(*pid, static_cast<int>(fastMs), &v)) {
+                    values[*pid] = v;
+                    poller.markAnswered(*pid, nowMs());
                 } else if (poller.unansweredStreak() >= 5) {
-                    logf(CANPROXY_LOG_WARN, "no answer from ECU 0x%03X, vehicle gone", primaryEcu);
+                    logf(CANPROXY_LOG_WARN, "no answer from ECU 0x%03X, vehicle gone", client.primaryEcu());
                     discovered = false;
                     host.set_link(host.ctx, 0);
                     continue;
@@ -241,10 +180,7 @@ struct Plugin {
             } else {
                 // Idle until something is due, but keep draining broadcasts.
                 const int64_t wait = poller.nextDeadline(now) - now;
-                obd::Frame f;
-                if (ch.receive(f, static_cast<int>(wait > 50 ? 50 : (wait < 1 ? 1 : wait))))
-                    if (telltaleId >= 0 && f.id == static_cast<uint32_t>(telltaleId))
-                        onTelltales(f);
+                client.idle(static_cast<int>(wait > 50 ? 50 : (wait < 1 ? 1 : wait)));
             }
 
             if (nowMs() >= nextPublish) {
@@ -291,18 +227,15 @@ int start(void *self)
     auto *p = static_cast<Plugin *>(self);
     if (p->running.exchange(true))
         return 0;
-    std::vector<uint32_t> accept;
-    for (uint32_t id = obd::kResponseIdFirst; id <= obd::kResponseIdLast; id++)
-        accept.push_back(id);
     if (p->telltaleId >= 0)
-        accept.push_back(static_cast<uint32_t>(p->telltaleId));
-    if (const std::string e = p->ch.open(p->vehicleIf, accept); !e.empty()) {
+        p->client.setBroadcastSink(p->telltaleId, [p](const obd::Frame &f) { p->onTelltales(f); });
+    if (const std::string e = p->client.open(p->vehicleIf); !e.empty()) {
         p->logf(CANPROXY_LOG_ERROR, "%s", e.c_str());
         p->running = false;
         return 1;
     }
     if (!p->recordPath.empty()) {
-        if (const std::string e = p->ch.startRecording(p->recordPath); !e.empty()) {
+        if (const std::string e = p->client.channel().startRecording(p->recordPath); !e.empty()) {
             p->logf(CANPROXY_LOG_ERROR, "%s", e.c_str());
             p->running = false;
             return 1;
@@ -321,8 +254,8 @@ void stop(void *self)
         return;
     if (p->thread.joinable())
         p->thread.join();
-    p->ch.stopRecording();
-    p->ch.close();
+    p->client.channel().stopRecording();
+    p->client.close();
 }
 
 void destroy(void *self) { delete static_cast<Plugin *>(self); }

@@ -1,0 +1,17 @@
+foreach(name emu-ev emu-hybrid)
+    string(REPLACE "-" "_" entry ${name})
+    add_library(${name} MODULE ${entry}.cpp EmuPlugin.cpp)
+    target_link_libraries(${name} PRIVATE canproxy::plugin_abi canproxy::obd Threads::Threads)
+    set_target_properties(${name} PROPERTIES PREFIX "" CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON
+        LIBRARY_OUTPUT_DIRECTORY ${CANPROXY_PLUGIN_OUTPUT_DIR})
+    target_compile_options(${name} PRIVATE -Wall -Wextra -Werror)
+    install(TARGETS ${name} LIBRARY DESTINATION lib/can-proxy/plugins)
+endforeach()
+
+if(CANPROXY_BUILD_TESTS)
+    add_executable(emu_profile_tests tests/emu_profile_tests.cpp)
+    target_link_libraries(emu_profile_tests PRIVATE canproxy::obd)
+    set_target_properties(emu_profile_tests PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+    target_compile_options(emu_profile_tests PRIVATE -Wall -Wextra -Werror)
+    add_test(NAME emu_profile_tests COMMAND emu_profile_tests)
+endif()

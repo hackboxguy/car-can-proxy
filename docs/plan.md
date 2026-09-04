@@ -26,8 +26,8 @@
 | 1 | proxy, cluster (docs) | Contract v1.1 frozen: header + tests + regenerated spec | CP1 passed, tagged `contract-v1.1` |
 | 2 | proxy | Daemon core + plugin ABI + `sim.so`; frames on `vcan0` | CP2 passed |
 | 3 | cluster | `ContractReader`, `--source=proxy`, validity, staleness; all themes from `sim` | CP3 passed |
-| 4 | proxy, emulator | `libobd` + `obd2-ice.so` against the emulator; analog theme end-to-end | **CP4 — in review** |
-| 5 | emulator, proxy | Emulator EV/hybrid + ISO-TP; `emu-ev.so`, `emu-hybrid.so`; EV and ADAS themes end-to-end | CP5 |
+| 4 | proxy, emulator | `libobd` + `obd2-ice.so` against the emulator; analog theme end-to-end | CP4 passed |
+| 5 | emulator, proxy, cluster | Emulator EV/hybrid + ISO-TP; `emu-ev.so`, `emu-hybrid.so`; EV and ADAS themes end-to-end; EV lamp icons | **CP5 — in review** |
 | 6 | all | systemd, deploy script, record/replay, CI, READMEs; v1 done review | CP6 |
 | v2-1 | proxy | First real-car session: Kia Picanto via CANable on Pi 4, with capture | CP7 |
 
@@ -265,6 +265,20 @@ traffic, and the proxy's UDS/ISO-TP path is exercised for real.
 **Not in scope.** Any real EV DID set.
 
 **Decisions verified.** D12. D8 is confirmed; note at CP5 which plugins fill `0x450`
+
+**Outcome (2026-09-04).** Delivered as planned plus the eight EV/hybrid lamp
+icons in the cluster's telltale row (shown only for a vehicle that reports
+an electric or combustion drivetrain, so demo and direct-CAN screens keep
+their twelve). The emulator was split into modules (`src/State`, `ObdEcu`,
+`BmsEcu`, `Telltales`, `Control`, `main`) and its battery ECU uses the
+kernel `can-isotp` socket, so every DID reply is a real multi-frame
+transfer. `libobd` gained `IsoTpChannel`, `Uds` (read-only by construction:
+`0x22` only) and `J1979Client`, onto which `obd2-ice` was refactored so the
+three OBD plugins share one "how to talk" implementation. The plugins take
+SoC from the DID and leave PID `0x5B` alone. `0x450` is still filled only
+by `sim` (D8 noted). Not done: recording of ISO-TP transfers (the raw
+recorder only sees the raw channel), so `can-replay --respond` reproduces
+the J1979 half of an EV session; a UDS-aware replay is a v2 item.
 
 **CP5 acceptance.**
 - `--car=ev` → `--theme=ev`: SoC, range, power flow, consumption, gear all

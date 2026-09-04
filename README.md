@@ -19,26 +19,27 @@ hybrid vehicles.
 
 ## Status
 
-Buckets 1 to 4 of the plan are complete: the contract is frozen as a
+Buckets 1 to 5 of the plan are complete: the contract is frozen as a
 tested header, `can-proxyd` publishes it on a CAN interface from a plugin
 loaded at runtime, the instrument-cluster application reads it
 (`--source=proxy`) with per-signal validity, per-gauge capability and
-automatic theme selection, and the `obd2-ice` plugin drives it from a
-real OBD-II source (the `car-can-emulator` today, a car next) through the
-`libobd` J1979 client with record and replay. EV and hybrid modes for the
-emulator and their plugins follow.
+automatic theme selection, and three vehicle plugins drive it from the
+`car-can-emulator` in its `ice`, `ev` and `hybrid` modes: `obd2-ice` over
+J1979, `emu-ev` and `emu-hybrid` over J1979 plus UDS/ISO-TP to a battery
+ECU. Deployment, CI and the v1 review (bucket 6) remain.
 
 | Piece | Where | State |
 |---|---|---|
 | Requirements | `docs/prd.md` | v0.2 |
-| Plan and checkpoints | `docs/plan.md` | bucket 4 done |
+| Plan and checkpoints | `docs/plan.md` | bucket 5 done |
 | Contract v1.1 | `contract/can_proxy_contract.h` | frozen, tag `contract-v1.1` |
 | Versioning rules | `docs/contract-versioning.md` | |
 | Plugin ABI v1 | `include/canproxy/plugin.h` | done |
 | Daemon `can-proxyd` | `core/` | done: plugin host, state machine, scheduler |
-| Plugins | `plugins/` | `sim`, `obd2-ice` done; `emu-ev`, `emu-hybrid` (bucket 5) |
+| Plugins | `plugins/` | `sim`, `obd2-ice`, `emu-ev`, `emu-hybrid` |
 | Tools | `tools/contract-dump`, `tools/can-replay` | contract decoder and timing checker; session replay |
-| OBD / UDS / ISO-TP library | `libobd/` | J1979 done; UDS and ISO-TP in bucket 5 |
+| OBD / UDS / ISO-TP library | `libobd/` | J1979 client, UDS `0x22` over kernel ISO-TP |
+| Emulator EV profile | `docs/emulator-ev-profile.md` | reference DIDs the emulator's battery ECU serves |
 
 ## Build and test
 
@@ -86,7 +87,9 @@ echo -n "speed 90" | nc 127.0.0.1 8080      # the contract follows within a poll
 
 `obd2-ice` discovers the supported-PID bitmaps and polls only what the ECU
 advertises: speed, rpm, coolant, fuel, module voltage, ambient and odometer
-when present. `--record` writes the vehicle side in candump format;
+when present. `emu-ev` and `emu-hybrid` do the same and add the emulator's
+battery ECU over UDS/ISO-TP (`--car=ev|hybrid`, `sudo modprobe can_isotp`);
+see `docs/emulator-ev-profile.md`. `--record` writes the vehicle side in candump format;
 `tools/can-replay --respond vcan1 session.log` then stands in for the
 vehicle, answering each request with the recorded reply, so a plugin can be
 developed and regression-tested after the car has gone.
