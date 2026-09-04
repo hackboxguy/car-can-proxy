@@ -332,6 +332,19 @@ from the checklist, by you. Decision on v2 investment.
 
 ---
 
+## First real-dongle session (2026-09-04, on the way to v2)
+
+A hardware OBD-II emulator on the CANable (gs_usb) attached to the Pi 4:
+`obd2-ice` discovered it, reached `state=ok` with speed, rpm (with the
+device's own jitter), coolant and fuel, 1.1 ms worst contract deviation,
+and recorded the session (`tests/fixtures/obd2-emulator-canable-pi4.log`,
+replayed by `replay_fixture_test`). Two things it taught:
+`can-proxy-links` must not insist on `restart-ms` (gs_usb has no bus-off
+restart), and a device may advertise every PID and answer the missing ones
+with zero fillers, so `obd2-ice` drops a PID that answers an unpopulated
+filler (module voltage below 6 V, ambient exactly -40 °C) from the session's
+advertised set rather than showing it as a measurement.
+
 ## v2 candidates (not planned in detail)
 
 1. Kia Picanto session over CANable: bit-rate/addressing detection, ECU range rule

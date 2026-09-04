@@ -55,6 +55,25 @@ journalctl -u can-proxyd -u car-can-emulator -u qt-cluster-demo -f
 For the real car: `./scripts/deploy.sh --plugin=obd2-ice --vehicle-if=can0`
 with the CANable plugged in; `can-proxy-links.service` sets the bitrate.
 
+## Capturing the panel on the Pi
+
+`/dev/fb0` is the tty console; eglfs output never appears there. Use the
+cluster's own `--screenshot`, which asks Qt for the window contents. eglfs
+holds DRM master, so the service must be stopped for the one foreground run:
+
+```bash
+sudo systemctl stop qt-cluster-demo
+trap 'sudo systemctl start qt-cluster-demo' EXIT
+ARGS=$(grep ^CLUSTER_ARGS= /home/pi/qt-cluster-demo/systemd/qt-cluster-demo.env | cut -d= -f2-)
+cd /home/pi/qt-cluster-demo && QT_QPA_PLATFORM=eglfs QT_FORCE_STDERR_LOGGING=1 \
+  ./build-pi-agx/src/qt-cluster-demo $ARGS --no-sweep --screenshot=/tmp/panel.png --screenshot-delay-ms=6000
+```
+
+Two gotchas: without `QT_FORCE_STDERR_LOGGING=1` Qt logs to journald and
+the terminal looks silent; the env file is `EnvironmentFile` format, so do
+not `source` it (unquoted spaces in `CLUSTER_ARGS` break the shell), read
+the line as above and pass it unquoted.
+
 ## Publisher timing
 
 ```bash
@@ -65,3 +84,4 @@ Record the worst deviation per frame in the checkpoint note. Dev host
 (2026-09-04): 0.07 ms. Pi 4 running image 01.09 with the cluster at 73 %
 CPU (2026-09-04): 3.0 ms on the 50 ms frames, under 1 ms on the rest, no
 counter skips over 10 s; the cluster's shortest staleness window is 250 ms.
+Image 01.10 (2026-09-04, measured by the other session): 2.1 ms.

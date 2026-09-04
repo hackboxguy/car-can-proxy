@@ -14,3 +14,7 @@ add_test(NAME emu_ev_test
     COMMAND ${CMAKE_SOURCE_DIR}/tests/integration/emu_ev_test.sh ${CMAKE_BINARY_DIR})
 set_tests_properties(emu_ev_test PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120
     ENVIRONMENT "CANPROXY_EMULATOR=${CANPROXY_EMULATOR}")
+
+add_test(NAME replay_fixture_test
+    COMMAND ${CMAKE_SOURCE_DIR}/tests/integration/replay_fixture_test.sh ${CMAKE_BINARY_DIR})
+set_tests_properties(replay_fixture_test PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)

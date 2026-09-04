@@ -12,6 +12,7 @@ class Poller {
 public:
     void clear();
     void add(uint8_t pid, int64_t intervalMs);
+    void remove(uint8_t pid);
     bool empty() const { return m_items.empty(); }
 
     // The PID whose request is most overdue at `now`, if any is due.

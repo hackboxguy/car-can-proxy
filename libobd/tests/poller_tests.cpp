@@ -60,6 +60,11 @@ int main()
     r.markRequested(0x0D, 600);
     CHECK(r.nextDue(600).value_or(0) == 0x05);
 
+    r.remove(0x05);
+    CHECK(!r.fresh(0x05, 700) && r.nextDue(2000).value_or(0) == 0x0D);
+    r.remove(0x0D);
+    CHECK(r.empty() && !r.nextDue(5000));
+
     std::printf("poller_tests: %d passed, %d failed\n", g_pass, g_fail);
     return g_fail ? 1 : 0;
 }

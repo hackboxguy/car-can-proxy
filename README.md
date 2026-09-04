@@ -44,6 +44,7 @@ real-car session is the first v2 item.
 | Plugin authoring | `docs/plugin-authoring.md` | the ABI walkthrough |
 | Bench checklist | `docs/bench-checklist.md` | the v1 definition-of-done runbook |
 | Services | `systemd/`, `scripts/deploy.sh` | `can-proxy-links` (interfaces) and `can-proxyd` |
+| Recorded sessions | `tests/fixtures/` | real-dongle captures replayed in `replay_fixture_test` |
 | CI | `.github/workflows/ci.yml` | unit tests plus the vcan integration tests against the emulator (the UDS test skips there: no `can_isotp` in the runner kernel) |
 
 ## Build and test

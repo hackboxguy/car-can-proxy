@@ -15,6 +15,12 @@ void Poller::add(uint8_t pid, int64_t intervalMs)
     m_items.push_back({ pid, intervalMs, 0, -1 });
 }
 
+void Poller::remove(uint8_t pid)
+{
+    for (auto it = m_items.begin(); it != m_items.end(); ++it)
+        if (it->pid == pid) { m_items.erase(it); return; }
+}
+
 const Poller::Item *Poller::find(uint8_t pid) const
 {
     for (const auto &it : m_items)

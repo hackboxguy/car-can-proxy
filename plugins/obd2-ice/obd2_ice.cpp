@@ -14,6 +14,14 @@
 // voltage, ambient and odometer every 20x. A signal is valid while its last
 // answer is younger than three of its own intervals; five unanswered
 // requests in a row mean the vehicle is gone and discovery starts over.
+//
+// Plausibility: some devices (the first hardware OBD-II emulator this met
+// on a CANable) advertise every PID and answer the ones they do not really
+// have with zero payloads. A module voltage below 6 V and an ambient
+// temperature of exactly -40 °C (raw 0x00) are the two such fillers that
+// would otherwise reach a gauge as measurements. A PID answering one is
+// dropped from the advertised set for the session (its capability bit
+// clears, the gauge hides) and logged once. Nothing else is second-guessed.
 #include "canproxy/plugin.h"
 #include "obd/J1979Client.h"
 #include "obd/Poller.h"
@@ -56,6 +64,27 @@ struct Plugin {
     std::map<uint8_t, double> values;
     uint32_t lamps = 0;
     int64_t lampsSeenMs = -1;
+    std::set<uint8_t> implausibleLogged;
+
+    // False for the two known "not really populated" answers; see the header
+    // comment. Drops the PID from the session's advertised set.
+    bool plausible(uint8_t pid, double v)
+    {
+        bool ok = true;
+        if (pid == obd::PID_MODULE_VOLTAGE && v < 6.0) ok = false;
+        if (pid == obd::PID_AMBIENT_TEMP && v <= -40.0) ok = false;
+        if (!ok) {
+            if (!implausibleLogged.count(pid)) {
+                implausibleLogged.insert(pid);
+                logf(CANPROXY_LOG_WARN, "PID 0x%02X (%s) answers %.1f, an unpopulated filler; dropping it for this session",
+                     pid, obd::pidName(pid), v);
+            }
+            supported.erase(pid);
+            poller.remove(pid);
+            values.erase(pid);
+        }
+        return ok;
+    }
 
     void logf(int level, const char *fmt, ...) __attribute__((format(printf, 3, 4)))
     {
@@ -169,8 +198,10 @@ struct Plugin {
                 poller.markRequested(*pid, now);
                 double v = 0;
                 if (client.query(*pid, static_cast<int>(fastMs), &v)) {
-                    values[*pid] = v;
-                    poller.markAnswered(*pid, nowMs());
+                    if (plausible(*pid, v)) {
+                        values[*pid] = v;
+                        poller.markAnswered(*pid, nowMs());
+                    }
                 } else if (poller.unansweredStreak() >= 5) {
                     logf(CANPROXY_LOG_WARN, "no answer from ECU 0x%03X, vehicle gone", client.primaryEcu());
                     discovered = false;
