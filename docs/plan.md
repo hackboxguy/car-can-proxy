@@ -345,6 +345,17 @@ with zero fillers, so `obd2-ice` drops a PID that answers an unpopulated
 filler (module voltage below 6 V, ambient exactly -40 °C) from the session's
 advertised set rather than showing it as a measurement.
 
+## Integration rounds with the image builder (2026-09-04)
+
+Three review rounds against Pi images 01.09 to 01.11 (notes in the
+workspace's `tmp-docs/`). Beyond the fixes recorded above they added:
+the emulator's driver-assist DID and drive cycle (`cycles/demo.cycle`
+replicates the cluster's demo, so the proxy path is as lively as `--demo`),
+`reset` on its control port, the cluster starting its contract reader
+before the QML load so `--theme=auto` resolves before the first frame,
+the source badge inside the telltale row, and the hybrid bench as the
+image default.
+
 ## v2 candidates (not planned in detail)
 
 1. Kia Picanto session over CANable: bit-rate/addressing detection, ECU range rule

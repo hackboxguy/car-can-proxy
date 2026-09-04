@@ -85,7 +85,7 @@ the daemon's no-vehicle and degraded states.
 With the emulator as the vehicle (or a real OBD-II car on `can0`):
 
 ```bash
-../car-can-emulator/build/car-can-emulator --node=vcan1 &
+../car-can-emulator/build/car-can-emulator --node=vcan1 --drive-cycle=../car-can-emulator/cycles/demo.cycle &
 ./build/core/can-proxyd --contract-if=vcan0 --vehicle-if=vcan1 --plugin=build/plugins/obd2-ice.so \
     --plugin-arg source=emulator --record=session.log
 echo -n "speed 90" | nc 127.0.0.1 8080      # the contract follows within a poll cycle

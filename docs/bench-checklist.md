@@ -29,7 +29,7 @@ knob() { printf '%s' "$1" > /dev/tcp/127.0.0.1/8080; }
 
 | # | Step | Command | Pass when |
 |---|---|---|---|
-| 1 | Emulator runs | `car-can-emulator/build/car-can-emulator --node=vcan1 --car=ev` | log shows OBD ECU and battery ECU started |
+| 1 | Emulator runs | `car-can-emulator/build/car-can-emulator --node=vcan1 --car=ev --drive-cycle=car-can-emulator/cycles/demo.cycle` | log shows OBD ECU, battery ECU and the drive cycle started; without `--drive-cycle` the car sits at fixed values |
 | 2 | Proxy runs | `car-can-proxy/build/core/can-proxyd --contract-if=vcan0 --vehicle-if=vcan1 --plugin=car-can-proxy/build/plugins/emu-ev.so --plugin-arg source=emulator` | `contract-dump vcan0` shows `state=ok`, `drivetrain=bev` |
 | 3 | Cluster runs | `QT_QPA_PLATFORM=eglfs qt-cluster-demo/build/src/qt-cluster-demo --source=proxy --contract-if=vcan0 --theme=auto` (on a PC without eglfs, omit the platform) | EV theme, live values, no `NO VEHICLE DATA` badge |
 | 4 | Knob to gauge | `knob "speed 90"; knob "soc 42"` | speed reads 90 and the battery 42 % within about a second |
