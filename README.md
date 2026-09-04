@@ -19,19 +19,20 @@ hybrid vehicles.
 
 ## Status
 
-Buckets 1 to 5 of the plan are complete: the contract is frozen as a
-tested header, `can-proxyd` publishes it on a CAN interface from a plugin
-loaded at runtime, the instrument-cluster application reads it
+v1 is feature complete (buckets 1 to 6 of the plan): the contract is frozen
+as a tested header, `can-proxyd` publishes it on a CAN interface from a
+plugin loaded at runtime, the instrument-cluster application reads it
 (`--source=proxy`) with per-signal validity, per-gauge capability and
-automatic theme selection, and three vehicle plugins drive it from the
-`car-can-emulator` in its `ice`, `ev` and `hybrid` modes: `obd2-ice` over
-J1979, `emu-ev` and `emu-hybrid` over J1979 plus UDS/ISO-TP to a battery
-ECU. Deployment, CI and the v1 review (bucket 6) remain.
+automatic theme selection, three vehicle plugins drive it from the
+`car-can-emulator` in its `ice`, `ev` and `hybrid` modes (`obd2-ice` over
+J1979, `emu-ev` and `emu-hybrid` over J1979 plus UDS/ISO-TP), and the whole
+chain installs as systemd services with a bench checklist and CI. The first
+real-car session is the first v2 item.
 
 | Piece | Where | State |
 |---|---|---|
 | Requirements | `docs/prd.md` | v0.2 |
-| Plan and checkpoints | `docs/plan.md` | bucket 5 done |
+| Plan and checkpoints | `docs/plan.md` | bucket 6 done, v1 review pending |
 | Contract v1.1 | `contract/can_proxy_contract.h` | frozen, tag `contract-v1.1` |
 | Versioning rules | `docs/contract-versioning.md` | |
 | Plugin ABI v1 | `include/canproxy/plugin.h` | done |
@@ -40,6 +41,10 @@ ECU. Deployment, CI and the v1 review (bucket 6) remain.
 | Tools | `tools/contract-dump`, `tools/can-replay` | contract decoder and timing checker; session replay |
 | OBD / UDS / ISO-TP library | `libobd/` | J1979 client, UDS `0x22` over kernel ISO-TP |
 | Emulator EV profile | `docs/emulator-ev-profile.md` | reference DIDs the emulator's battery ECU serves |
+| Plugin authoring | `docs/plugin-authoring.md` | the ABI walkthrough |
+| Bench checklist | `docs/bench-checklist.md` | the v1 definition-of-done runbook |
+| Services | `systemd/`, `scripts/deploy.sh` | `can-proxy-links` (interfaces) and `can-proxyd` |
+| CI | `.github/workflows/ci.yml` | unit tests plus the vcan integration tests against the emulator |
 
 ## Build and test
 
@@ -101,6 +106,21 @@ against `include/canproxy/plugin.h`. It pushes a `canproxy_vehicle_state` in
 physical units with a validity bit per signal and tells the host whether a
 vehicle is present. It never sees the contract bus. `plugins/sim/sim.cpp` is
 the reference; a full authoring guide is planned for bucket 6.
+
+## Deploy as a service
+
+```bash
+./scripts/deploy.sh --plugin=emu-ev --vehicle-if=vcan1     # bench, emulator on vcan1
+./scripts/deploy.sh --plugin=obd2-ice --vehicle-if=can0    # real car on a CANable dongle
+journalctl -u can-proxyd -f
+```
+
+`can-proxy-links.service` creates the contract `vcan` and configures the
+vehicle interface (bitrate for a real `canN`, a `vcan` for the bench);
+`can-proxyd.service` runs the daemon as `pi` and reads
+`systemd/can-proxyd.env`, which the deploy script writes. The units use
+`/home/pi/car-can-proxy` paths, like the cluster's. Pi images built with
+`misc-tools` install all of this through `board-configs/qt-cluster-demo`.
 
 ## Related repositories
 

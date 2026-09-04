@@ -1,0 +1,35 @@
+[Unit]
+Description=CAN proxy: bring up the contract bus (vcan) and the vehicle interface
+Documentation=file:///home/pi/car-can-proxy/docs/
+DefaultDependencies=no
+After=systemd-modules-load.service
+Before=network-pre.target can-proxyd.service car-can-emulator.service qt-cluster-demo.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# Defaults; systemd/can-proxyd.env overrides them.
+Environment=CONTRACT_IF=vcan0
+Environment=VEHICLE_IF=vcan1
+Environment=VEHICLE_BITRATE=500000
+EnvironmentFile=-/home/pi/car-can-proxy/systemd/can-proxyd.env
+# Contract bus is always a vcan. The vehicle side is a vcan for the bench
+# (created here) or a real canN (CANable, MCP2515 hat) that only needs its
+# bitrate set; a canN that is not plugged in is skipped, not an error, so
+# the proxy still comes up and reports "no vehicle".
+ExecStart=/bin/sh -c '\
+    modprobe vcan; modprobe can_isotp 2>/dev/null || true; \
+    ip link show "$CONTRACT_IF" >/dev/null 2>&1 || ip link add dev "$CONTRACT_IF" type vcan; \
+    ip link set up "$CONTRACT_IF"; \
+    case "$VEHICLE_IF" in \
+      vcan*) ip link show "$VEHICLE_IF" >/dev/null 2>&1 || ip link add dev "$VEHICLE_IF" type vcan; \
+             ip link set up "$VEHICLE_IF" ;; \
+      can*)  if ip link show "$VEHICLE_IF" >/dev/null 2>&1; then \
+               ip link set "$VEHICLE_IF" down 2>/dev/null; \
+               ip link set "$VEHICLE_IF" type can bitrate "$VEHICLE_BITRATE" restart-ms 100; \
+               ip link set up "$VEHICLE_IF"; \
+             else echo "vehicle interface $VEHICLE_IF not present (unplugged?), continuing"; fi ;; \
+    esac'
+
+[Install]
+WantedBy=multi-user.target

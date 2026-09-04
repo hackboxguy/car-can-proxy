@@ -1,6 +1,6 @@
 # car-can-proxy — Product Requirements
 
-**Status:** v0.2, checkpoint 0 passed (2026-09-04)
+**Status:** v0.3, buckets 1-6 delivered (2026-09-04); v1 review at checkpoint 6
 **Date:** 2026-09-03
 **Companion:** `docs/plan.md` (buckets and checkpoints)
 

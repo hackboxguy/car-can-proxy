@@ -27,8 +27,8 @@
 | 2 | proxy | Daemon core + plugin ABI + `sim.so`; frames on `vcan0` | CP2 passed |
 | 3 | cluster | `ContractReader`, `--source=proxy`, validity, staleness; all themes from `sim` | CP3 passed |
 | 4 | proxy, emulator | `libobd` + `obd2-ice.so` against the emulator; analog theme end-to-end | CP4 passed |
-| 5 | emulator, proxy, cluster | Emulator EV/hybrid + ISO-TP; `emu-ev.so`, `emu-hybrid.so`; EV and ADAS themes end-to-end; EV lamp icons | **CP5 — in review** |
-| 6 | all | systemd, deploy script, record/replay, CI, READMEs; v1 done review | CP6 |
+| 5 | emulator, proxy, cluster | Emulator EV/hybrid + ISO-TP; `emu-ev.so`, `emu-hybrid.so`; EV and ADAS themes end-to-end; EV lamp icons | CP5 passed |
+| 6 | all + image tooling | systemd, deploy scripts, CI, checklist, plugin guide, Pi image hooks; v1 done review | **CP6 — in review** |
 | v2-1 | proxy | First real-car session: Kia Picanto via CANable on Pi 4, with capture | CP7 |
 
 Dependency: 1 → 2 → 3, and 2 → 4 → 5. Bucket 3 and bucket 4 are independent
@@ -307,6 +307,22 @@ the J1979 half of an EV session; a UDS-aware replay is a v2 item.
 
 **Decisions verified.** D5 (v1 done), D1 (final boundary audit across the
 three repos).
+
+**Outcome (2026-09-04).** Delivered: `systemd/can-proxy-links.service`
+(vcan for the contract, bitrate or vcan for the vehicle, module loading)
+and `systemd/can-proxyd.service` with `scripts/deploy.sh`; the emulator
+gained `systemd/car-can-emulator.service`; the cluster's
+`build-and-deploy.sh --mode=proxy` and its unit ordered after the proxy;
+`.github/workflows/ci.yml` (unit tests, then the vcan integration tests
+against a checkout of the emulator); `docs/bench-checklist.md` and
+`docs/plugin-authoring.md`. Pi images: `misc-tools` gained hooks for
+`car-can-proxy` and `car-can-emulator` in the `qt-cluster-demo` board
+config, installing both as enabled services with the bench default
+(emulator `--car=ev` on `vcan1`, `emu-ev`); the cluster's own image
+default is untouched, so switching an image to the proxy path is one env
+line. Not done here: the Pi jitter measurement (needs the board) and the
+checklist run on a Pi, both yours at CP6; the CI workflow has not run yet
+(first push to GitHub triggers it).
 
 **CP6 acceptance.** All eight steps in PRD §3 pass on a Pi 4 and on a PC,
 from the checklist, by you. Decision on v2 investment.

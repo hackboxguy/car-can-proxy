@@ -1,0 +1,28 @@
+[Unit]
+Description=CAN proxy: one vehicle plugin in, the cluster contract out
+Documentation=file:///home/pi/car-can-proxy/docs/
+Requires=can-proxy-links.service
+After=can-proxy-links.service
+# Refuse to start without a built binary.
+ConditionPathExists=/home/pi/car-can-proxy/build/core/can-proxyd
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/car-can-proxy
+# Defaults; systemd/can-proxyd.env (written by scripts/deploy.sh) overrides.
+Environment=CONTRACT_IF=vcan0
+Environment=VEHICLE_IF=vcan1
+Environment=PLUGIN=sim
+Environment=PLUGIN_ARGS=
+Environment=EXTRA_ARGS=
+EnvironmentFile=-/home/pi/car-can-proxy/systemd/can-proxyd.env
+Environment=CANPROXY_PLUGIN_DIR=/home/pi/car-can-proxy/build/plugins
+ExecStart=/home/pi/car-can-proxy/build/core/can-proxyd --contract-if=${CONTRACT_IF} --vehicle-if=${VEHICLE_IF} --plugin=${PLUGIN} $PLUGIN_ARGS $EXTRA_ARGS
+Restart=always
+RestartSec=2
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

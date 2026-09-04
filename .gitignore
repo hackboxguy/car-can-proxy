@@ -3,3 +3,4 @@ Output/
 *.o
 *.so
 compile_commands.json
+systemd/can-proxyd.env
