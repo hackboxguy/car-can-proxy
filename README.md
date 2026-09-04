@@ -37,7 +37,7 @@ real-car session is the first v2 item.
 | Versioning rules | `docs/contract-versioning.md` | |
 | Plugin ABI v1 | `include/canproxy/plugin.h` | done |
 | Daemon `can-proxyd` | `core/` | done: plugin host, state machine, scheduler |
-| Plugins | `plugins/` | `sim`, `obd2-ice`, `emu-ev`, `emu-hybrid` |
+| Plugins | `plugins/` | `sim`, `obd2-ice`, `emu-ev`, `emu-hybrid`, `forza` (game telemetry, `docs/forza.md`) |
 | Tools | `tools/contract-dump`, `tools/can-replay` | contract decoder and timing checker; session replay |
 | OBD / UDS / ISO-TP library | `libobd/` | J1979 client, UDS `0x22` over kernel ISO-TP |
 | Emulator EV profile | `docs/emulator-ev-profile.md` | reference DIDs the emulator's battery ECU serves |
@@ -107,6 +107,15 @@ against `include/canproxy/plugin.h`. It pushes a `canproxy_vehicle_state` in
 physical units with a validity bit per signal and tells the host whether a
 vehicle is present. It never sees the contract bus. `plugins/sim/sim.cpp` is
 the reference; a full authoring guide is planned for bucket 6.
+
+## A game as the vehicle
+
+```bash
+./build/core/can-proxyd --contract-if=vcan0 --plugin=build/plugins/forza.so --plugin-arg port=1101
+```
+
+then set Forza's Data Out to this host's IP and port 1101; see
+`docs/forza.md`.
 
 ## Deploy as a service
 

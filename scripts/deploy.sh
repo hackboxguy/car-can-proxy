@@ -72,8 +72,10 @@ cmake --build "${BUILD_DIR}" -j "${JOBS}"
 
 if (( ! SKIP_TESTS )); then
     echo "== Unit tests"
-    # Integration tests need vcan interfaces; they SKIP without them.
-    ctest --test-dir "${BUILD_DIR}" --output-on-failure -E "cycle|obd2_ice|emu_ev"
+    # Integration tests (label "integration") need vcan interfaces and own
+    # them while running; a chroot image build shares the host's namespace
+    # and would collide with a running bench, so only unit tests run here.
+    ctest --test-dir "${BUILD_DIR}" --output-on-failure -LE integration
 fi
 
 (( SKIP_DEPLOY )) && { echo "Build complete (deploy skipped)."; exit 0; }

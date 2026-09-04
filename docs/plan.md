@@ -356,6 +356,16 @@ before the QML load so `--theme=auto` resolves before the first frame,
 the source badge inside the telltale row, and the hybrid bench as the
 image default.
 
+## Forza plugin (2026-09-04)
+
+Asked for after the image work: Forza Horizon / Motorsport "Data Out" UDP
+telemetry as a vehicle (`plugins/forza`, `docs/forza.md`). Speed, rpm, gear,
+power state, motor power, fuel and distance from the stream; nothing
+invented for what the game does not send. Pure parser with tests for the
+four packet sizes; integration test synthesises the stream with python.
+First plugin with no CAN interface at all, which the ABI allowed from the
+start (`vehicle_if` may be NULL).
+
 ## v2 candidates (not planned in detail)
 
 1. Kia Picanto session over CANable: bit-rate/addressing detection, ECU range rule
