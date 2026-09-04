@@ -26,9 +26,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake g++ linux-libc-dev linux-modules-extra-$(uname -r) || true
 
+      # vcan comes with linux-modules-extra; can_isotp does NOT exist in the
+      # runners' Azure kernel flavour, so emu_ev_test (UDS over ISO-TP) reports
+      # SKIP here and runs only on a dev box or the Pi. A userspace ISO-TP
+      # fallback in libobd (plan, v2) would lift that.
       - name: Virtual CAN interfaces
         run: |
-          sudo modprobe vcan && sudo modprobe can_isotp || echo "can_isotp unavailable; UDS tests will SKIP"
+          sudo modprobe vcan
+          sudo modprobe can_isotp || echo "can_isotp unavailable on this kernel; emu_ev_test will SKIP"
           sudo ./car-can-proxy/scripts/bench-up.sh
 
       - name: Build emulator

@@ -336,6 +336,7 @@ from the checklist, by you. Decision on v2 investment.
 2. `obd2-profile.so`: a generic plugin driven by a JSON profile (the
    `ev-can-signals.md` tier-2 idea), built on `libobd`.
 3. Real EV plugin from a community DID set (OBDb) plus a capture.
-4. Userspace ISO-TP fallback for kernels without `can-isotp`.
+4. Userspace ISO-TP fallback for kernels without `can-isotp` (GitHub's
+   Azure runner kernel is one; `emu_ev_test` skips in CI until then).
 5. `0x450` fed by something real, or removed.
 6. OpenWrt package for the proxy.
