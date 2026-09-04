@@ -29,6 +29,14 @@ int main()
     CHECK(NEAR(dr.motorPowerKw, -50.0));
     CHECK(!emu::decodeDrive({ 0x07, 0x03, 0x19, 0xC8, 0x00, 0xD5 }, dr));           // gear out of range
 
+    emu::Assist as;
+    CHECK(emu::decodeAssist({ 0x4E, 0x32, 0x00, 0x03, 0x01, 0xA4, 0x00, 0x00 }, as));
+    CHECK(as.ecoScore == 78 && as.speedLimitKmh == 50 && as.collisionRisk == 0 && as.laneState == 3 && NEAR(as.leadGapM, 42.0));
+    CHECK(emu::decodeAssist({ 0x64, 0x00, 0x03, 0xF7, 0x00, 0x3C, 0x00, 0x00 }, as));   // upper lane bits masked
+    CHECK(as.speedLimitKmh == 0 && as.collisionRisk == 3 && as.laneState == 7 && NEAR(as.leadGapM, 6.0));
+    CHECK(!emu::decodeAssist({ 0x65, 0x32, 0x00, 0x03, 0x01, 0xA4 }, as));               // eco > 100
+    CHECK(!emu::decodeAssist({ 0x4E, 0x32, 0x00 }, as));
+
     std::printf("emu_profile_tests: %d passed, %d failed\n", g_pass, g_fail);
     return g_fail ? 1 : 0;
 }

@@ -64,10 +64,27 @@ All multi-byte fields big-endian, as is usual for UDS records.
 | 4-5 | motor power | int16, 0.1 kW, negative = regeneration |
 | 6-7 | reserved | 0 |
 
+### `0x0104` driver assist, 8 bytes
+
+| Offset | Field | Encoding |
+|---|---|---|
+| 0 | eco score | uint8, 0-100 |
+| 1 | posted speed limit | uint8, km/h, 0 = none known |
+| 2 | forward collision risk | 0 none, 1 low, 2 medium, 3 high |
+| 3 | lane state | b0 left seen, b1 right seen, b2 left departure, b3 right departure |
+| 4-5 | lead vehicle gap | uint16, 0.1 m |
+| 6-7 | reserved | 0 |
+
+What an ADAS unit reports; on the emulator the values come from knobs. The
+plugins publish it as contract frame `0x450` and set capability bit 17 when
+the DID answers at start, so a vehicle without it hides the badge and the
+risk glow instead of showing stand-ins.
+
 ## Control-port knobs (emulator)
 
 `soc`, `soh`, `packv`, `packi`, `chg`, `range`, `cons`, `gear`, `pwr`,
-`mrpm`, `power`, in the units above; `car` reads the current type.
+`mrpm`, `power`, `eco`, `limit`, `risk`, `lane`, `gap`, in the units above;
+`car` reads the current type.
 
 ## What the plugins publish
 
@@ -85,8 +102,10 @@ All multi-byte fields big-endian, as is usual for UDS records.
 | fuel | not capable | PID `2F` |
 | aux battery | PID `42` | PID `42` |
 | lamps | `0x420` broadcast, plus EV ready / charging mirrored from the DIDs | same |
+| eco score, speed limit, collision risk, lane state, lead gap | DID `0104` | same |
 
-Poll periods: DID `0103` and `0101` every 100 ms, `0102` every 500 ms;
+Poll periods: DID `0103` and `0101` every 100 ms, `0104` every 200 ms,
+`0102` every 500 ms;
 PIDs as in `obd2-ice`. A DID is valid while its last answer is younger
 than three periods. If the battery ECU never answers at start, the EV
 signals are not advertised at all (the plugin degrades to what the OBD

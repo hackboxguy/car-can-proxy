@@ -111,7 +111,19 @@ struct Stat { int count = 0; int64_t last = 0; double sumInterval = 0; double wo
 
 int main(int argc, char **argv)
 {
-    if (argc < 2) { std::fprintf(stderr, "usage: contract-dump <if> [--stats=<s>] [--max-jitter-ms=<n>] [--expect-ids=a,b] [--require-counter] [--raw]\n"); return 2; }
+    auto usage = [](std::FILE *to) {
+        std::fprintf(to,
+            "usage: contract-dump <interface> [options]\n"
+            "  contract-dump vcan0                      decoded frames until Ctrl-C\n"
+            "  contract-dump vcan0 --raw                hex only\n"
+            "  contract-dump vcan0 --stats=<seconds>    per-ID count, mean cycle and worst deviation, then exit\n"
+            "      --max-jitter-ms=<n>                  exit 1 if any ID's worst deviation exceeds n ms\n"
+            "      --expect-ids=0x400,0x410,...         exit 1 if a listed ID was never seen\n"
+            "      --require-counter                    exit 1 on any 0x400 rolling-counter skip\n"
+            "The interface is positional (not --if=); it must exist: ip link show vcan0\n");
+    };
+    if (argc < 2 || std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h") { usage(argc < 2 ? stderr : stdout); return argc < 2 ? 2 : 0; }
+    if (std::string(argv[1]).rfind("--", 0) == 0) { std::fprintf(stderr, "first argument must be the interface name\n"); usage(stderr); return 2; }
     const char *ifname = argv[1];
     int statsSec = 0; double maxJitterMs = -1; bool requireCounter = false, raw = false;
     std::vector<uint32_t> expect;
@@ -126,7 +138,7 @@ int main(int argc, char **argv)
         }
         else if (a == "--require-counter") requireCounter = true;
         else if (a == "--raw") raw = true;
-        else { std::fprintf(stderr, "unknown option %s\n", argv[i]); return 2; }
+        else { std::fprintf(stderr, "unknown option %s\n", argv[i]); usage(stderr); return 2; }
     }
 
     int fd = socket(PF_CAN, SOCK_RAW, CAN_RAW);

@@ -62,4 +62,6 @@ car-can-proxy/build/tools/contract-dump vcan0 --stats=10 --max-jitter-ms=5 --req
 ```
 
 Record the worst deviation per frame in the checkpoint note. Dev host
-(2026-09-04): 0.07 ms. Pi 4: to be measured.
+(2026-09-04): 0.07 ms. Pi 4 running image 01.09 with the cluster at 73 %
+CPU (2026-09-04): 3.0 ms on the 50 ms frames, under 1 ms on the rest, no
+counter skips over 10 s; the cluster's shortest staleness window is 250 ms.

@@ -31,7 +31,7 @@ int64_t nowMs()
 }
 
 // Poller keys for the DIDs (the Poller is keyed by a byte).
-constexpr uint8_t kKeyPack = 0xF1, kKeyRange = 0xF2, kKeyDrive = 0xF3;
+constexpr uint8_t kKeyPack = 0xF1, kKeyRange = 0xF2, kKeyDrive = 0xF3, kKeyAssist = 0xF4;
 
 struct Plugin {
     bool hybrid = false;
@@ -49,11 +49,13 @@ struct Plugin {
     obd::Poller poller;
     bool discovered = false;
     bool bmsPresent = false;
+    bool assistPresent = false;
     std::set<uint8_t> supported;
     std::map<uint8_t, double> values;
     emu::Pack pack{};
     emu::Range range{};
     emu::Drive drive{};
+    emu::Assist assist{};
     uint32_t lamps = 0;
     int64_t lampsSeenMs = -1;
 
@@ -107,22 +109,32 @@ struct Plugin {
             poller.add(kKeyDrive, fastMs);
             poller.add(kKeyPack, fastMs);
             poller.add(kKeyRange, fastMs * 5);
+            // Driver-assist record: optional even on a vehicle with a battery ECU.
+            auto a = obd::readDid(bms, emu::kDidAssist, 300);
+            assistPresent = a && a->positive;
+            if (assistPresent)
+                poller.add(kKeyAssist, fastMs * 2);
+        } else {
+            assistPresent = false;
         }
-        logf(CANPROXY_LOG_INFO, "ECU 0x%03X advertises %zu PIDs; battery ECU %s",
-             client.primaryEcu(), supported.size(), bmsPresent ? "present" : "absent");
+        logf(CANPROXY_LOG_INFO, "ECU 0x%03X advertises %zu PIDs; battery ECU %s, driver assist %s",
+             client.primaryEcu(), supported.size(), bmsPresent ? "present" : "absent",
+             assistPresent ? "present" : "absent");
         return true;
     }
 
     bool pollDid(uint8_t key)
     {
-        const uint16_t did = key == kKeyPack ? emu::kDidPack : key == kKeyRange ? emu::kDidRange : emu::kDidDrive;
+        const uint16_t did = key == kKeyPack ? emu::kDidPack : key == kKeyRange ? emu::kDidRange
+                           : key == kKeyAssist ? emu::kDidAssist : emu::kDidDrive;
         auto r = obd::readDid(bms, did, static_cast<int>(fastMs));
         if (!r || !r->positive)
             return false;
         switch (key) {
         case kKeyPack:  return emu::decodePack(r->data, pack);
-        case kKeyRange: return emu::decodeRange(r->data, range);
-        default:        return emu::decodeDrive(r->data, drive);
+        case kKeyRange:  return emu::decodeRange(r->data, range);
+        case kKeyAssist: return emu::decodeAssist(r->data, assist);
+        default:         return emu::decodeDrive(r->data, drive);
         }
     }
 
@@ -182,6 +194,21 @@ struct Plugin {
                 s.power_state = drive.powerState;
                 s.motor_power_kw = drive.motorPowerKw;
                 if (!hybrid) s.rpm = drive.motorRpm;
+            }
+        }
+
+        if (assistPresent) {
+            const uint32_t assistSigs = CANPROXY_SIG_BIT(CANPROXY_SIG_ECO_SCORE) | CANPROXY_SIG_BIT(CANPROXY_SIG_SPEED_LIMIT) |
+                                        CANPROXY_SIG_BIT(CANPROXY_SIG_COLLISION_RISK) | CANPROXY_SIG_BIT(CANPROXY_SIG_LANE_STATE) |
+                                        CANPROXY_SIG_BIT(CANPROXY_SIG_LEAD_GAP);
+            s.capable |= assistSigs;
+            if (poller.fresh(kKeyAssist, now)) {
+                s.valid |= assistSigs;
+                s.eco_score = assist.ecoScore;
+                s.speed_limit_kmh = assist.speedLimitKmh;
+                s.collision_risk = assist.collisionRisk;
+                s.lane_state = assist.laneState;
+                s.lead_gap_m = assist.leadGapM;
             }
         }
 

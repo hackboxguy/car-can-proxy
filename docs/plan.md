@@ -275,8 +275,11 @@ kernel `can-isotp` socket, so every DID reply is a real multi-frame
 transfer. `libobd` gained `IsoTpChannel`, `Uds` (read-only by construction:
 `0x22` only) and `J1979Client`, onto which `obd2-ice` was refactored so the
 three OBD plugins share one "how to talk" implementation. The plugins take
-SoC from the DID and leave PID `0x5B` alone. `0x450` is still filled only
-by `sim` (D8 noted). Not done: recording of ISO-TP transfers (the raw
+SoC from the DID and leave PID `0x5B` alone. `0x450` was at first filled
+only by `sim`; after the integration review the emulator gained a
+driver-assist DID (`0x0104`) and `emu-ev`/`emu-hybrid` publish it, so the
+third theme's badge, risk glow and lead gap come from the bench vehicle
+(D8 closed). Not done: recording of ISO-TP transfers (the raw
 recorder only sees the raw channel), so `can-replay --respond` reproduces
 the J1979 half of an EV session; a UDS-aware replay is a v2 item.
 

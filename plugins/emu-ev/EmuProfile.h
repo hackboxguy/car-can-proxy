@@ -12,10 +12,12 @@ constexpr uint32_t kBmsResponseId = 0x7EC;
 constexpr uint16_t kDidPack = 0x0101;
 constexpr uint16_t kDidRange = 0x0102;
 constexpr uint16_t kDidDrive = 0x0103;
+constexpr uint16_t kDidAssist = 0x0104;
 
 struct Pack { double voltageV; double currentA; double socPct; double sohPct; int charging; };
 struct Range { int rangeKm; int consumptionWhKm; double odometerKm; };
 struct Drive { int gear; int powerState; int motorRpm; double motorPowerKw; };
+struct Assist { int ecoScore; int speedLimitKmh; int collisionRisk; unsigned laneState; double leadGapM; };
 
 inline bool decodePack(const std::vector<uint8_t> &d, Pack &out)
 {
@@ -45,6 +47,17 @@ inline bool decodeDrive(const std::vector<uint8_t> &d, Drive &out)
     out.motorRpm = obd::be16(&d[2]);
     out.motorPowerKw = obd::be16s(&d[4]) / 10.0;
     return out.gear <= 4 && out.powerState <= 3;
+}
+
+inline bool decodeAssist(const std::vector<uint8_t> &d, Assist &out)
+{
+    if (d.size() < 6) return false;
+    out.ecoScore = d[0];
+    out.speedLimitKmh = d[1];
+    out.collisionRisk = d[2];
+    out.laneState = d[3] & 0x0F;
+    out.leadGapM = obd::be16(&d[4]) / 10.0;
+    return out.ecoScore <= 100 && out.collisionRisk <= 3;
 }
 
 } // namespace emu

@@ -28,18 +28,18 @@ expect() { echo "$OUT" | grep -q -- "$1" || { echo "FAIL [$2]: wanted '$1' got: 
 echo "== 1. --car=ev through emu-ev: EV signals from UDS, no fuel/coolant, bev identity"
 start_emu ev; start_daemon emu-ev; sleep 2.5
 OUT=$(decoded 1.2)
-# caps: speed0 rpm1 gear2 motor3 packVI4 soc5 range6 cons7 odo8 ambient9 aux12 soh13 charging14 power-state16 = 0x173FF
-expect "status    v1.1 state=ok caps=0x173FF" ev-caps
+# caps: speed0 rpm1 gear2 motor3 packVI4 soc5 range6 cons7 odo8 ambient9 aux12 soh13 charging14 power-state16 assist17 = 0x373FF
+expect "status    v1.1 state=ok caps=0x373FF" ev-caps
 expect "identity  drivetrain=bev source=emulator" ev-identity
 expect "motion    speed=88.00 km/h rpm=6600 gear=D power=ready" ev-motion
 expect "edrive    power=21.300 kW pack=388.0 V 55.000 A" ev-edrive
 expect "energy    soc=80.0% soh=97.0% range=290 km cons=165 Wh/km chg=0" ev-energy
 expect "thermal   coolant=SNA C fuel=SNA% aux=12.60 V" ev-thermal
 expect "telltales 0x00001000" ev-ready-lamp
-echo "$OUT" | grep -q "0x450" && { echo "FAIL: assist frame published"; fail=1; }
+expect "assist    eco=78 limit=50 risk=0 lane=3 gap=42.00 m" ev-assist
 
 echo "== 2. battery knobs over UDS reach the contract"
-knob "soc 42.5"; knob "power -30"; knob "chg 2"; knob "packi -80"; knob "range 150"; knob "gear N"
+knob "soc 42.5"; knob "power -30"; knob "chg 2"; knob "packi -80"; knob "range 150"; knob "gear N"; knob "limit 80"; knob "risk 2"; knob "gap 12.5"
 sleep 2
 OUT=$(decoded 1.2)
 expect "soc=42.5%" soc-knob
@@ -49,13 +49,14 @@ expect "-80.00 A" current-knob
 expect "range=150 km" range-knob
 expect "gear=N" gear-knob
 expect "telltales 0x00003000" charging-lamp
+expect "limit=80 risk=2 lane=3 gap=12.50 m" assist-knobs
 stop_all
 
 echo "== 3. --car=hybrid through emu-hybrid: fuel and SoC both live, hev identity"
 start_emu hybrid; start_daemon emu-hybrid; sleep 2.5
 OUT=$(decoded 1.2)
-# ev caps + coolant10 fuel11 = 0x173FF | 0xC00 = 0x17FFF
-expect "state=ok caps=0x17FFF" hybrid-caps
+# ev caps + coolant10 fuel11 = 0x373FF | 0xC00 = 0x37FFF
+expect "state=ok caps=0x37FFF" hybrid-caps
 expect "drivetrain=hev" hybrid-identity
 expect "motion    speed=88.00 km/h rpm=768 gear=D power=ready" hybrid-motion-engine-rpm
 expect "thermal   coolant=-5 C fuel=75.0% aux=12.60 V" hybrid-thermal
@@ -77,7 +78,7 @@ start_emu ev; start_daemon emu-ev; sleep 2.5
 kill "$EPID"; wait "$EPID" 2>/dev/null; EPID=""
 sleep 2.5
 OUT=$(decoded 1.2)
-expect "state=no-vehicle caps=0x173FF" loss-caps-held
+expect "state=no-vehicle caps=0x373FF" loss-caps-held
 expect "soc=SNA%" loss-soc
 start_emu ev; sleep 3
 OUT=$(decoded 1.2)

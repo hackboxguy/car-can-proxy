@@ -18,7 +18,8 @@ EnvironmentFile=-/home/pi/car-can-proxy/systemd/can-proxyd.env
 # bitrate set; a canN that is not plugged in is skipped, not an error, so
 # the proxy still comes up and reports "no vehicle".
 ExecStart=/bin/sh -c '\
-    modprobe vcan; modprobe can_isotp 2>/dev/null || true; \
+    modprobe vcan; \
+    modprobe can_isotp 2>/dev/null || echo "can_isotp module not available: UDS/ISO-TP plugins (emu-ev, emu-hybrid) and the emulator battery ECU will not work"; \
     ip link show "$CONTRACT_IF" >/dev/null 2>&1 || ip link add dev "$CONTRACT_IF" type vcan; \
     ip link set up "$CONTRACT_IF"; \
     case "$VEHICLE_IF" in \
