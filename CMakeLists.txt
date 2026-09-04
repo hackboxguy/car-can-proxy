@@ -20,6 +20,7 @@ endif()
 find_package(Threads REQUIRED)
 
 add_subdirectory(contract)
+add_subdirectory(libobd)
 add_subdirectory(core)
 add_subdirectory(plugins)
 add_subdirectory(tools)

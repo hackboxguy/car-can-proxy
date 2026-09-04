@@ -13,6 +13,7 @@ struct Config {
     std::string pluginDir;                        // where names resolve
     std::vector<std::pair<std::string, std::string>> pluginArgs;
     unsigned pluginTimeoutMs = 1000;              // silence before "degraded"
+    std::string recordPath;                       // vehicle-side candump log
     LogLevel logLevel = LogLevel::Info;
     bool help = false;
 

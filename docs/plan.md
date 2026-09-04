@@ -25,8 +25,8 @@
 | 0 | proxy (docs) | PRD + plan, decisions D1-D5 confirmed, D12 and D8 answered | CP0 passed |
 | 1 | proxy, cluster (docs) | Contract v1.1 frozen: header + tests + regenerated spec | CP1 passed, tagged `contract-v1.1` |
 | 2 | proxy | Daemon core + plugin ABI + `sim.so`; frames on `vcan0` | CP2 passed |
-| 3 | cluster | `ContractReader`, `--source=proxy`, validity, staleness; all themes from `sim` | **CP3 — in review** |
-| 4 | proxy, emulator | `libobd` + `obd2-ice.so` against `--car=ice`; analog theme end-to-end | CP4 |
+| 3 | cluster | `ContractReader`, `--source=proxy`, validity, staleness; all themes from `sim` | CP3 passed |
+| 4 | proxy, emulator | `libobd` + `obd2-ice.so` against the emulator; analog theme end-to-end | **CP4 — in review** |
 | 5 | emulator, proxy | Emulator EV/hybrid + ISO-TP; `emu-ev.so`, `emu-hybrid.so`; EV and ADAS themes end-to-end | CP5 |
 | 6 | all | systemd, deploy script, record/replay, CI, READMEs; v1 done review | CP6 |
 | v2-1 | proxy | First real-car session: Kia Picanto via CANable on Pi 4, with capture | CP7 |
@@ -212,6 +212,22 @@ is written to the J1979 standard rather than to the emulator.
 **Not in scope.** ISO-TP / UDS, EV signals.
 
 **Decisions verified.** D6 (capability bits from real discovery), D10.
+
+**Outcome (2026-09-04).** Delivered as planned. `libobd` is J1979 decode,
+supported-PID bitmaps, a SocketCAN channel with candump-format recording,
+and a poll scheduler that keeps slow PIDs from being starved; all pure parts
+are unit tested. `obd2-ice` discovers the bitmap chain from the first ECU
+that answers and sticks to it, polls only what is advertised, derives power
+state from rpm (engine running is a fact rpm carries), and keeps its
+capability set across a link loss so the cluster layout holds while values
+go unknown. Replay of a poller session cannot be timing-based, so
+`tools/can-replay --respond` acts as the recorded vehicle (answers each PID
+with the last recorded reply, re-broadcasts non-OBD frames on their
+period); `--timed` behaves like `canplayer`. The emulator change turned out
+to include one usability fix (`SO_REUSEADDR` on its control port; a
+restart within a minute was refused). `tests/integration/obd2_ice_test.sh`
+runs the four scenarios below and a golden compare of live versus replayed
+contract output.
 
 **CP4 acceptance.**
 - `echo -n "speed 90" | nc 127.0.0.1 8080` moves the analog speedometer.

@@ -19,24 +19,26 @@ hybrid vehicles.
 
 ## Status
 
-Buckets 1 to 3 of the plan are complete: the contract is frozen as a
+Buckets 1 to 4 of the plan are complete: the contract is frozen as a
 tested header, `can-proxyd` publishes it on a CAN interface from a plugin
-loaded at runtime with the `sim` plugin as the first vehicle, and the
-instrument-cluster application reads it (`--source=proxy`) with per-signal
-validity, per-gauge capability and automatic theme selection. The OBD
-library and the emulator-backed plugins follow.
+loaded at runtime, the instrument-cluster application reads it
+(`--source=proxy`) with per-signal validity, per-gauge capability and
+automatic theme selection, and the `obd2-ice` plugin drives it from a
+real OBD-II source (the `car-can-emulator` today, a car next) through the
+`libobd` J1979 client with record and replay. EV and hybrid modes for the
+emulator and their plugins follow.
 
 | Piece | Where | State |
 |---|---|---|
 | Requirements | `docs/prd.md` | v0.2 |
-| Plan and checkpoints | `docs/plan.md` | bucket 3 done |
+| Plan and checkpoints | `docs/plan.md` | bucket 4 done |
 | Contract v1.1 | `contract/can_proxy_contract.h` | frozen, tag `contract-v1.1` |
 | Versioning rules | `docs/contract-versioning.md` | |
 | Plugin ABI v1 | `include/canproxy/plugin.h` | done |
 | Daemon `can-proxyd` | `core/` | done: plugin host, state machine, scheduler |
-| Plugins | `plugins/` | `sim` done; `obd2-ice` (bucket 4), `emu-ev`, `emu-hybrid` (bucket 5) |
-| Tools | `tools/contract-dump` | decoder and cycle-timing checker |
-| OBD / UDS / ISO-TP library | `libobd/` | bucket 4-5 |
+| Plugins | `plugins/` | `sim`, `obd2-ice` done; `emu-ev`, `emu-hybrid` (bucket 5) |
+| Tools | `tools/contract-dump`, `tools/can-replay` | contract decoder and timing checker; session replay |
+| OBD / UDS / ISO-TP library | `libobd/` | J1979 done; UDS and ISO-TP in bucket 5 |
 
 ## Build and test
 
@@ -51,8 +53,11 @@ integration test needs a `vcan0` interface and reports SKIP without one:
 
 ```bash
 ./scripts/bench-up.sh          # creates vcan0 (contract) and vcan1 (vehicle), needs sudo
-ctest --test-dir build         # now includes tests/integration/sim_cycle_test.sh
+ctest --test-dir build         # includes the vcan integration tests
 ```
+
+The `obd2_ice_test` integration test also needs the emulator built at
+`../car-can-emulator/build/car-can-emulator` (or `-DCANPROXY_EMULATOR=<path>`).
 
 ## Run
 
@@ -69,6 +74,22 @@ after `cmake --install`; a path ending in `.so` is used as given. See
 The `sim` plugin takes `drivetrain=ice|bev|hev|phev`, `assist=0`, `link=0`
 and `stall_after_ms=<n>` as plugin arguments; the last two exist to exercise
 the daemon's no-vehicle and degraded states.
+
+With the emulator as the vehicle (or a real OBD-II car on `can0`):
+
+```bash
+../car-can-emulator/build/car-can-emulator --node=vcan1 &
+./build/core/can-proxyd --contract-if=vcan0 --vehicle-if=vcan1 --plugin=build/plugins/obd2-ice.so \
+    --plugin-arg source=emulator --record=session.log
+echo -n "speed 90" | nc 127.0.0.1 8080      # the contract follows within a poll cycle
+```
+
+`obd2-ice` discovers the supported-PID bitmaps and polls only what the ECU
+advertises: speed, rpm, coolant, fuel, module voltage, ambient and odometer
+when present. `--record` writes the vehicle side in candump format;
+`tools/can-replay --respond vcan1 session.log` then stands in for the
+vehicle, answering each request with the recorded reply, so a plugin can be
+developed and regression-tested after the car has gone.
 
 ## Writing a plugin
 

@@ -17,6 +17,7 @@ std::string Config::usage(const std::string &prog)
            "  --plugin-dir=<dir>        default " CANPROXY_DEFAULT_PLUGIN_DIR "\n"
            "  --plugin-arg key=value    passed to the plugin, repeatable\n"
            "  --plugin-timeout-ms=<n>   plugin silence before signals go unknown (default 1000)\n"
+           "  --record=<file>           record the vehicle side in candump format (plugin arg record=)\n"
            "  --log-level=<level>       error|warn|info|debug (default info)\n"
            "  --help\n";
 }
@@ -62,12 +63,19 @@ std::string Config::parse(int argc, char **argv, Config &out)
             out.pluginTimeoutMs = static_cast<unsigned>(n);
             continue;
         }
+        if (takeValue(arg, "--record", v, i, argc, argv)) {
+            if (v.empty()) return "--record expects a file path";
+            out.recordPath = v;
+            continue;
+        }
         if (takeValue(arg, "--log-level", v, i, argc, argv)) {
             if (!parseLogLevel(v, out.logLevel)) return "unknown log level '" + v + "'";
             continue;
         }
         return "unknown argument '" + arg + "'";
     }
+    if (!out.recordPath.empty())
+        out.pluginArgs.emplace_back("record", out.recordPath);
     if (out.contractIf.empty()) return "--contract-if is required";
     if (out.plugin.empty()) return "--plugin is required";
     return "";

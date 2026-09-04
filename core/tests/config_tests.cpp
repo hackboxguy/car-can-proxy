@@ -29,6 +29,8 @@ int main()
     CHECK(c.pluginTimeoutMs == 250 && c.logLevel == LogLevel::Debug);
     CHECK(!parse({ "--contract-if=vcan0", "--plugin=sim", "--log-level=loud" }, c).empty());
     CHECK(!parse({ "--contract-if=vcan0", "--plugin=sim", "--bogus" }, c).empty());
+    CHECK(parse({ "--contract-if=vcan0", "--plugin=obd2-ice", "--record=/tmp/x.log" }, c).empty());
+    CHECK(c.recordPath == "/tmp/x.log" && c.pluginArgs.size() == 1 && c.pluginArgs[0].first == "record" && c.pluginArgs[0].second == "/tmp/x.log");
     CHECK(parse({ "--help" }, c).empty() && c.help);
 
     // plugin path resolution
