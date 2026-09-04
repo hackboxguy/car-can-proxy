@@ -32,7 +32,7 @@ real-car session is the first v2 item.
 | Piece | Where | State |
 |---|---|---|
 | Requirements | `docs/prd.md` | v0.2 |
-| Plan and checkpoints | `docs/plan.md` | bucket 6 done, v1 review pending |
+| Plan and checkpoints | `docs/plan.md` | v1 complete; open items in `docs/handover-next-session.md` |
 | Contract v1.1 | `contract/can_proxy_contract.h` | frozen, tag `contract-v1.1` |
 | Versioning rules | `docs/contract-versioning.md` | |
 | Plugin ABI v1 | `include/canproxy/plugin.h` | done |
