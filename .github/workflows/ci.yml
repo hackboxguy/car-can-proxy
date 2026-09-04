@@ -1,0 +1,51 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: car-can-proxy
+
+      # The bench vehicle. Pinned so a change there cannot break this repo's
+      # CI silently; bump deliberately when the emulator contract changes.
+      - uses: actions/checkout@v4
+        with:
+          repository: hackboxguy/car-can-emulator
+          ref: main
+          path: car-can-emulator
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ linux-libc-dev linux-modules-extra-$(uname -r) || true
+
+      - name: Virtual CAN interfaces
+        run: |
+          sudo modprobe vcan && sudo modprobe can_isotp || echo "can_isotp unavailable; UDS tests will SKIP"
+          sudo ./car-can-proxy/scripts/bench-up.sh
+
+      - name: Build emulator
+        run: cmake -S car-can-emulator -B car-can-emulator/build && cmake --build car-can-emulator/build -j
+
+      - name: Build proxy
+        run: |
+          cmake -S car-can-proxy -B car-can-proxy/build -DCMAKE_BUILD_TYPE=Release \
+                -DCANPROXY_EMULATOR=$GITHUB_WORKSPACE/car-can-emulator/build/car-can-emulator
+          cmake --build car-can-proxy/build -j
+
+      - name: Unit and integration tests
+        run: ctest --test-dir car-can-proxy/build --output-on-failure
+
+      - name: Contract timing on vcan (informational)
+        run: |
+          car-can-proxy/build/core/can-proxyd --contract-if=vcan0 --plugin=car-can-proxy/build/plugins/sim.so --log-level=warn &
+          sleep 1
+          car-can-proxy/build/tools/contract-dump vcan0 --stats=5 --max-jitter-ms=10 --require-counter
+          kill %1
