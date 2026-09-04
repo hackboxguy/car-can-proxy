@@ -19,15 +19,17 @@ hybrid vehicles.
 
 ## Status
 
-Buckets 1 and 2 of the plan are complete: the contract is frozen as a
-tested header, and `can-proxyd` publishes it on a CAN interface from a
-plugin loaded at runtime, with the `sim` plugin as the first vehicle. The
-OBD library and the emulator-backed plugins follow.
+Buckets 1 to 3 of the plan are complete: the contract is frozen as a
+tested header, `can-proxyd` publishes it on a CAN interface from a plugin
+loaded at runtime with the `sim` plugin as the first vehicle, and the
+instrument-cluster application reads it (`--source=proxy`) with per-signal
+validity, per-gauge capability and automatic theme selection. The OBD
+library and the emulator-backed plugins follow.
 
 | Piece | Where | State |
 |---|---|---|
 | Requirements | `docs/prd.md` | v0.2 |
-| Plan and checkpoints | `docs/plan.md` | bucket 2 done |
+| Plan and checkpoints | `docs/plan.md` | bucket 3 done |
 | Contract v1.1 | `contract/can_proxy_contract.h` | frozen, tag `contract-v1.1` |
 | Versioning rules | `docs/contract-versioning.md` | |
 | Plugin ABI v1 | `include/canproxy/plugin.h` | done |

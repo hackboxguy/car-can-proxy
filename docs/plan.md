@@ -24,8 +24,8 @@
 |---|---|---|---|
 | 0 | proxy (docs) | PRD + plan, decisions D1-D5 confirmed, D12 and D8 answered | CP0 passed |
 | 1 | proxy, cluster (docs) | Contract v1.1 frozen: header + tests + regenerated spec | CP1 passed, tagged `contract-v1.1` |
-| 2 | proxy | Daemon core + plugin ABI + `sim.so`; frames on `vcan0` | **CP2 — in review** |
-| 3 | cluster | `ContractReader`, `--source=proxy`, validity, staleness; all themes from `sim` | CP3 |
+| 2 | proxy | Daemon core + plugin ABI + `sim.so`; frames on `vcan0` | CP2 passed |
+| 3 | cluster | `ContractReader`, `--source=proxy`, validity, staleness; all themes from `sim` | **CP3 — in review** |
 | 4 | proxy, emulator | `libobd` + `obd2-ice.so` against `--car=ice`; analog theme end-to-end | CP4 |
 | 5 | emulator, proxy | Emulator EV/hybrid + ISO-TP; `emu-ev.so`, `emu-hybrid.so`; EV and ADAS themes end-to-end | CP5 |
 | 6 | all | systemd, deploy script, record/replay, CI, READMEs; v1 done review | CP6 |
@@ -158,6 +158,18 @@ heartbeat loss.
 **Not in scope.** Emulator, real CAN, any plugin work.
 
 **Decisions verified.** D1 (boundary), D13.
+
+**Outcome (2026-09-04).** Delivered as planned. The decoder is a pure class
+(`ContractDecoder`) handing the model a Qt-free `VehicleSnapshot` in physical
+units, so the model never sees a frame ID. Additions beyond the plan:
+`--screenshot=<file>` for headless review captures (used for the acceptance
+evidence in the cluster's `docs/images/can-proxy/`), a SIM / REPLAY /
+NO VEHICLE DATA badge on every theme for a proxy source, and the third
+theme takes speed limit, collision risk and lead gap from the vehicle
+when a proxy is the source (its synthetic stand-ins stay for demo and
+direct CAN). No-regression check: the cluster's three pre-existing test
+binaries pass unchanged and demo-mode screenshots match the previous
+look; every new model property defaults to the old behaviour.
 
 **CP3 acceptance.**
 - `qt-cluster-demo --source=proxy --contract-if=vcan0 --theme=analog|ev|adas`
