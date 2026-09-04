@@ -1,0 +1,5 @@
+add_executable(contract-dump contract-dump.cpp)
+target_link_libraries(contract-dump PRIVATE canproxy::contract)
+set_target_properties(contract-dump PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+target_compile_options(contract-dump PRIVATE -Wall -Wextra -Werror)
+install(TARGETS contract-dump RUNTIME DESTINATION bin)

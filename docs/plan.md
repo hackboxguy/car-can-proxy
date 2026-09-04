@@ -23,8 +23,8 @@
 | Bucket | Repo(s) | Outcome | Checkpoint |
 |---|---|---|---|
 | 0 | proxy (docs) | PRD + plan, decisions D1-D5 confirmed, D12 and D8 answered | CP0 passed |
-| 1 | proxy, cluster (docs) | Contract v1.1 frozen: header + tests + regenerated spec | **CP1 — in review** |
-| 2 | proxy | Daemon core + plugin ABI + `sim.so`; frames on `vcan0` | CP2 |
+| 1 | proxy, cluster (docs) | Contract v1.1 frozen: header + tests + regenerated spec | CP1 passed, tagged `contract-v1.1` |
+| 2 | proxy | Daemon core + plugin ABI + `sim.so`; frames on `vcan0` | **CP2 — in review** |
 | 3 | cluster | `ContractReader`, `--source=proxy`, validity, staleness; all themes from `sim` | CP3 |
 | 4 | proxy, emulator | `libobd` + `obd2-ice.so` against `--car=ice`; analog theme end-to-end | CP4 |
 | 5 | emulator, proxy | Emulator EV/hybrid + ISO-TP; `emu-ev.so`, `emu-hybrid.so`; EV and ADAS themes end-to-end | CP5 |
@@ -109,8 +109,18 @@ nothing.
 
 **Decisions verified.** D3, D11, D14.
 
+**Outcome (2026-09-04).** Delivered as planned plus `tools/contract-dump`
+(a decoder and cycle-timing checker, so acceptance does not depend on
+`can-utils`) and `tests/integration/sim_cycle_test.sh`, which runs the four
+acceptance scenarios below on a real `vcan0` and reports SKIP where there is
+none. Measured on the dev host: every frame on cycle with worst deviation
+0.07 ms over 6 s, no counter skips. The ABI header carries no contract
+symbol (`grep -c 0x4 include/canproxy/plugin.h` = 0). The ABI's enumerated
+values use a `CP_` prefix so a host translation unit can include it next to
+the contract header. Plugin timeout defaults to 1000 ms (`--plugin-timeout-ms`).
+
 **CP2 acceptance.**
-- `candump vcan0` shows `0x400`, `0x401`, `0x410`, `0x411`, `0x420`, `0x430`,
+- `candump vcan0` (or `contract-dump vcan0 --stats`) shows `0x400`, `0x401`, `0x410`, `0x411`, `0x420`, `0x430`,
   `0x431`, `0x440` (and `0x450` if kept) at documented cycles for 60 s with no
   gaps; rolling counter has no skips.
 - `kill -STOP` the sim plugin thread (test hook) → `0x400` state goes to
