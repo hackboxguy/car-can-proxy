@@ -1,4 +1,4 @@
-# Forza Horizon 5 telemetry: what else the cluster could show
+# Future extensions: Forza telemetry, maps, Android Auto, and the look of the cluster
 
 An exploration, 2026-09-05, no code. What the game actually sends, which
 of it the contract already carries, what a small contract extension would
@@ -229,3 +229,78 @@ bridge on the Pi that completes the handshake with one phone and writes
 decoded frames to a file or a local stream, with no cluster change at all.
 If that works, the cluster side is a slot toggle and a second frame source,
 about the size of the local-camera provider.
+
+## Addendum, 2026-09-05: making the telltale icons look like a car's
+
+Reference: four photos of the Kia Picanto's cluster (`tmp-docs/picanto-*.jpg`
+in the workspace). What its lamps have that the cluster's do not:
+
+- **ISO 2575 shapes at ISO proportions.** Door-ajar is a top-view car with
+  both front doors swung out; the belt runs diagonally across a seated
+  figure; brake is `(!)` with the parentheses well clear of the ring; ABS
+  is the same ring with bold text; the engine outline is compact and
+  squat; oil is a low can with a drip; battery has two terminal stubs;
+  ESC is a car over two skid marks. The cluster's glyphs are recognisable
+  but drawn to different proportions and weights, so they read as "icons"
+  rather than "lamps".
+- **One stroke weight everywhere.** Every lamp is a stencil cut from the
+  same sheet: uniform line width, rounded joins, filled areas where ISO
+  fills them. Ours mix a 6 px stroke, thin ticks and solid fills per icon.
+- **A glow, not a flat colour.** A lit lamp is light bleeding through a
+  stencil: a saturated core with a soft halo a few pixels wide, and the
+  colours are the lamp colours (red `#ff3a2f`, amber `#ffb000`, green
+  `#4ade5a`, blue `#4aa8ff` for high beam) rather than UI accents.
+- **Off means invisible.** An unlit lamp leaves no ghost; the panel is
+  black until the bulb check or a fault. The cluster's 12 % ghost is a
+  deliberate demo feature (`minDarkLevelEnabled`), so this is a default to
+  reconsider, not a bug.
+- **Grouping by meaning, not a strip.** Red warnings sit together at the
+  bottom centre, seatbelt/airbag/door at the top, lighting lamps (green)
+  as a pair, ESC and TPMS as a pair; two short rows, not one long line.
+
+### What can be done without touching code or behaviour
+
+Everything below keeps the file names, the bit table in `TelltaleRow`, the
+bulb check, the blink and the ghost logic exactly as they are; only
+`tools/gen-telltales.py` and the PNGs it writes change.
+
+1. **Redraw the twenty glyphs to ISO 2575 proportions** with one stroke
+   weight (about 5.5 px on the 96 px canvas, rounded caps and joins) and
+   an optical box (every glyph fills the same 64 × 64 area so no lamp
+   looks bigger than its neighbour). Use the photos as the reference for
+   each shape.
+2. **Lamp colours from the photos**, as the four constants at the top of
+   the generator.
+3. **Render at 2x** (192 px PNGs; the `Image` already mipmaps) so the
+   56 px lamps on the 1920 panel stop looking soft.
+4. **Text glyphs in the cluster's own face**: "ABS", "OFF", "P" set in the
+   bundled Lexend Deca via `rsvg-convert` instead of DejaVu, so the lamps
+   share the cluster's typography.
+5. **A contact sheet**: have the generator also write one PNG with all
+   twenty lamps at 56 px on black, lit, so a change can be judged against
+   the photos at a glance and reviewed in a diff.
+
+Regenerating the existing twelve is safe: the generator reproduces the
+checked-in PNGs byte for byte today, so any difference is intentional.
+
+### One small, additive code change that buys the most
+
+**A halo layer.** Bake a second image per lamp, `<name>-glow.png`, on a
+larger canvas: the glyph blurred (about 6 px at 96) at 35 % alpha, in the
+lamp colour. `TelltaleIcon` draws it beneath the glyph only when lit, with
+a 60 ms opacity ease so the switch reads as a bulb rather than a pixel
+flip. The component's properties stay the same, so `TelltaleRow` and the
+themes are untouched; the ghost keeps using the crisp glyph alone, so it
+stays a ghost. Pre-baked halos cost one extra textured quad per lit lamp,
+which is nothing; the alternative, a live `Glow` effect per icon, is a
+blur pass per lamp per frame and is the wrong trade on the Pi.
+
+### Later, and behavioural
+
+- Group lamps by meaning and colour in two short rows instead of one
+  strip. This is a `TelltaleRow` layout change and interacts with the
+  clock, the badge and the DMS group, so it belongs with a theme pass.
+- Default `minDarkLevelEnabled` to off for the dark-panel look; the
+  existing toggle already implements both.
+- The two ADAS symbols the design file holds (lane-keep, pedestrian) once
+  the design-system library key exists (cluster handover, item 1).

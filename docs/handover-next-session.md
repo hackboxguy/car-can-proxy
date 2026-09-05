@@ -140,7 +140,7 @@ the daemon with `--plugin-arg source=replay`; the cluster shows `REPLAY`.
    DID set.
 6. `0x450` on a real vehicle: today only the emulator's assist DID and
    `sim` fill it.
-7. Gaming and map ideas, explored but not started: `docs/forza-exploration.md`
+7. Gaming and map ideas, explored but not started: `docs/future-extensions.md`
    (per-car gauge limits, g-ball, tires, race panel, a moving map of the
    game world, a BeamNG plugin for real telltales, GPS + OpenStreetMap for
    a real car).
