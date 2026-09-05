@@ -176,3 +176,56 @@ If Android Auto is wanted, the shape that fits this project:
 Android Automotive OS with its Instrument Cluster API is the other real-car
 route, but hobby AAOS builds for the Pi have no Google Maps, and it would
 replace Linux on that box rather than sit beside the cluster.
+
+### An Android Auto window inside the cluster
+
+A different, better-shaped idea than replacing the OS: keep the image as it
+is, run the Android Auto link on the cluster Pi, and show the projected
+video in a slot of the cluster. This is what Android Auto is: a video of
+the phone's car UI, so "a window that plays the stream" is the whole head
+unit, placed where the third theme's centre slot is.
+
+What makes it plausible here is that the cluster already has this shape
+for the driver camera: `LocalCameraDmsProvider` runs an external process
+(`rpicam-vid` + `ffmpeg`) that streams frames over local UDP into the QML
+raw-frame renderer, and the third theme yields its centre slot to that
+panel. An Android Auto bridge is the same thing with a different source:
+
+1. A bridge process on the Pi built on `aasdk` (the reverse-engineered head
+   unit library): USB accessory mode with the phone on a host port, or
+   wireless with the Pi as access point plus Bluetooth for the handshake.
+   It declares a head-unit resolution (800x480 or 1280x720 are the sizes
+   phones render for), receives the H.264 video channel, decodes it on the
+   Pi 4's hardware decoder (`h264_v4l2m2m`), and feeds frames to the
+   cluster the way the camera helper does.
+2. The cluster shows it in the centre slot behind a "phone" toggle, like
+   the DMS panel today. No vehicle knowledge, no contract involvement: it
+   is a side channel, exactly as the camera is.
+3. Optionally the same bridge forwards the navigation-status channel as
+   UDP to a proxy `navigation` plugin, so the next-turn card also exists
+   when the video window is off.
+
+What to expect:
+
+- Input. The projected UI wants a touchscreen; the cluster has none. A few
+  steering-wheel-style keys mapped through aasdk's input channel (rotary
+  and select) drive it, and Google Maps navigation can be started by voice
+  or on the phone before it projects. Without any input it still works as a
+  display: the phone keeps projecting whatever app is up.
+- Load. Decoding is on the VideoCore; the texture upload and one more
+  quad are small. The third theme already uses most of one core, so
+  measure, but this is cheaper than a live tile map.
+- Fragility. Phone-side Android Auto updates have broken `aasdk` several
+  times; wireless needs Bluetooth pairing quirks handled; the certificate
+  in the library has to be one current phones accept. Budget for chasing
+  this, and keep the bridge outside the cluster process so a crash or a
+  protocol change cannot take the gauges down.
+- Policy. Google does not support third-party head units, and projected
+  Android Auto is meant for the centre display, not the cluster. Fine for
+  a bench and a hobby car; not something to build a product on.
+
+First milestone that answers the risky question cheaply: an `aasdk`-based
+bridge on the Pi that completes the handshake with one phone and writes
+decoded frames to a file or a local stream, with no cluster change at all.
+If that works, the cluster side is a slot toggle and a second frame source,
+about the size of the local-camera provider.
