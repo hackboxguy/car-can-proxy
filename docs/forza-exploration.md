@@ -123,3 +123,56 @@ lamp inference ideas above.
 The boundary. Every feature here is a plugin filling a contract frame and a
 QML widget gated by a capability bit. The game never reaches the cluster,
 the cluster never learns which game it is, and the `SIM` badge stays on.
+
+## Addendum, 2026-09-05: Android Auto, and the forza.ba.id.au map
+
+### forza.ba.id.au
+
+A hosted live map for Forza Horizon 5 (and `fh6.ba.id.au` for Horizon 6):
+you point the game's Data Out at their server and the site shows your car,
+and everyone else's, moving on a rendered map of the game world. It proves
+option 1 above end to end (game position → calibrated map raster → moving
+marker) and shows that the calibration problem is solved; but it is an
+online third-party service that receives your telemetry, not something a
+cluster can embed. The open-source equivalent to learn the calibration
+from is `austinbaccus/forza-map-visualization` (Python, plots FM7/FH4/FH5
+telemetry on the map). For the cluster the ingredients are the same: a map
+raster, the world-to-pixel transform, and the position frame; all local,
+no server.
+
+### Android Auto on the Pi
+
+What Android Auto gives a head unit is a projected video stream of the
+phone's UI plus audio and touch; the head unit never receives map data.
+The protocol does carry a separate **navigation status** channel with
+turn-by-turn facts (manoeuvre, distance, road, ETA) meant for a car's
+instrument cluster, and the reverse-engineered `aasdk` library implements
+it; a 2026 project, OpenAutoLink, uses exactly that for cluster/HUD
+support. So the honest AA integration is the one real cars do: the map
+stays on the head-unit screen, the cluster shows the next turn.
+
+Basing the image on Crankshaft is not the way: Crankshaft is unmaintained
+(Raspberry Pi OS Buster era), OpenAuto Pro was discontinued, community
+forks chase every phone-side Android Auto update, and the cluster needs the
+Pi's display exclusively (eglfs), so the head-unit UI would need a second
+screen or a second box anyway. Building the product on a reverse-engineered
+link that Google does not support is fine for a bench toy, wrong as a
+foundation.
+
+If Android Auto is wanted, the shape that fits this project:
+
+1. The head unit is its own device (a second Pi with an aasdk-based
+   OpenAuto fork, or the car's real head unit). It owns the map screen.
+2. A small bridge on that device forwards the navigation-status channel as
+   UDP to the cluster Pi; a `navigation` plugin turns it into a contract
+   frame (`0x480`: manoeuvre enum, distance to turn, ETA, capability bit);
+   the third theme gets a turn card. Road names are text and do not fit an
+   8-byte frame; either a multi-frame text mechanism or "no names" at first.
+3. The live map background for a real car comes from GPS plus offline
+   OpenStreetMap tiles on the cluster itself (option 3 above), not from
+   Android Auto. A phone can also be just the position source (any
+   "share GPS over TCP/NMEA" app) while the cluster draws its own map.
+
+Android Automotive OS with its Instrument Cluster API is the other real-car
+route, but hobby AAOS builds for the Pi have no Google Maps, and it would
+replace Linux on that box rather than sit beside the cluster.
