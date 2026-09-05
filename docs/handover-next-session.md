@@ -122,6 +122,13 @@ the daemon with `--plugin-arg source=replay`; the cluster shows `REPLAY`.
 - The proxy repo is public: no vendor names in it (the third theme is
   "adas" here).
 
+## What comes next
+
+`docs/extension-plan.md` orders the post-v1 work: transport extension
+(contract v1.2) and UI refinement first, gaming and maps second, phone
+integration third. `docs/future-extensions.md` holds the reasoning and the
+frame sketches behind it.
+
 ## Open items (in order of value)
 
 1. **The Kia Picanto.** Same recipe as the CANable above with the car on the

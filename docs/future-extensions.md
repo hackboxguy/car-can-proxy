@@ -314,3 +314,77 @@ blur pass per lamp per frame and is the wrong trade on the Pi.
   existing toggle already implements both.
 - The two ADAS symbols the design file holds (lane-keep, pedestrian) once
   the design-system library key exists (cluster handover, item 1).
+
+## Addendum, 2026-09-05: telemetry beyond v1.1, against a full gauge set
+
+Reference: a set of CarPlay-style gauge and tile designs
+(`tmp-docs/instrument-cluster-guage-idea/` in the workspace): ring
+speedometers with a large numeral, a LIMIT badge, range and fuel arcs,
+gear-and-mode dials with coolant readouts, tire-pressure and belt/door
+car outlines, trip and charging cards, compass strips, a g-meter, an
+efficiency sparkline, plus calendar, weather, clock and media tiles. Also
+a diagram of the car compositing its own safety layer (telltales, ADAS)
+under remote tiles.
+
+### Already on the contract (v1.1): cluster work only
+
+Speed, rpm, gear, power state, motor power, pack V/I, SoC, SoH, range,
+consumption, charging state, odometer, fuel, 12 V battery, **coolant**
+(engine temperature, `0x440`), **cabin temperature** (`0x431` byte 5, bit
+15; no producer yet), **ambient** (external temperature, `0x431`), the
+assist frame (posted limit, collision risk, lane state, lead gap, eco
+score) and twenty lamps. Every ring, badge and arc in the reference set
+that shows one of these needs no transport change.
+
+### Missing: a v1.2, all additive
+
+New IDs from the reserved range, new capability bits, reserved bytes that
+already transmit as zero, so a v1.1 reader ignores all of it by
+construction (`docs/contract-versioning.md`).
+
+| Frame | Cycle | Payload (8 bytes) | Cap bit | Gauges it unlocks |
+|---|---|---|---|---|
+| `0x402` vehicle limits | 1 s | max rpm u16, max power kW u16, max speed u16 0.1 km/h, class/PI u16 | 18 | per-car gauge scales, class badge |
+| `0x412` dynamics | 20 ms | long. accel i16 0.01 m/s², lat. accel i16, yaw rate i16 0.1 °/s, pitch i8, roll i8 | 19 | g-meter, road-view tilt |
+| `0x413` tires | 500 ms | 4 × pressure u8 0.05 bar (SNA 0xFF), 4 × temperature i8 °C | 20 | tire-pressure car outline |
+| `0x414` engine detail | 500 ms | oil pressure u8 0.05 bar, oil temp i8, boost i8 0.1 bar, transmission temp i8, intake temp i8, throttle u8 %, brake u8 %, res | 21 | oil, boost and pedal gauges |
+| `0x415` cruise and mode | 100 ms | cruise state u8 (off, standby, active, adaptive), set speed u16 0.1 km/h, gap setting u8 1..4, drive mode u8 enum (normal, eco, comfort, sport, sport+, all-terrain, snow, custom), res | 22 | set-speed marker on the ring, mode label under the gear |
+| `0x416` occupancy | 200 ms | belt fastened bits u8 (seat 0..7), occupied bits u8, door ajar bits u8 (FL FR RL RR bonnet boot), window/roof bits u8, res | 23 | per-seat belt and per-door car outline; today door and belt are one lamp each |
+| `0x470` trip | 1 s | trip distance u32 0.1 km, trip time u16 min, avg speed u8 km/h, avg consumption i8 (Wh/km ÷ 10 or L/100 km × 10 by drivetrain) | 24 | trip card, efficiency history (cluster keeps the series) |
+| `0x471` charging | 1 s | charge power i16 0.1 kW, target SoC u8 0.5 %, minutes to target u16, plug state u8, res | 25 | charging card |
+| `0x460` position | 100 ms | frame type u8 (none, WGS-84, local metres), lat/X i32 1e-7° or 0.1 m, lon/Y (next frame) | 26 | moving map, breadcrumb |
+| `0x461` attitude | 100 ms | heading u16 0.01°, altitude i16 m, speed over ground u16 0.01 km/h, fix quality u8 | 26 (shared) | compass strip, map rotation |
+| `0x480` navigation | 200 ms | manoeuvre u8 enum, distance to turn u16 m, ETA u16 min, road class u8 | 27 | next-turn card (from a phone bridge) |
+
+That spends ten of the fourteen free bits; `0x413`, `0x470` and `0x471`
+take one bit for the whole frame, as `0x450` does. If more is ever needed,
+`0x403` can carry a second capability word.
+
+Not transport: weather, calendar, clock, media. They come from a phone or
+the network, not the vehicle, and belong on a side channel like the driver
+camera; the reference set's own compositor diagram makes the same split.
+Efficiency history and unit conversion need no signal either.
+
+### Producers
+
+- `sim`: everything, from the drive cycle, so widgets are built without hardware.
+- Emulator UDS profile: new DIDs `0x0105` cruise/mode, `0x0106` tires,
+  `0x0107` trip, `0x0108` charging, `0x0109` occupancy; `emu-ev`/`emu-hybrid`
+  read them. J1979 already offers oil temperature (`0x5C`), intake (`0x0F`),
+  barometric (`0x33`) for `obd2-ice`.
+- `forza`: limits, dynamics, tires, engine detail, position.
+- A real car: cruise, tires and occupancy are OEM UDS, which is what the
+  plugin layer is for.
+
+The plugin ABI struct grows, which is ABI version 2; plugins are in-tree
+and rebuild together.
+
+### Units
+
+The contract carries physical metric units only (km/h, km, °C, kW, V, A,
+Wh/km, bar, m), by design rule 2 in `can-proxy-interface.md`: a proxy never
+knows how a value will be shown. mph, °F, miles, mpg and mi/kWh are a
+display choice, so they belong to the cluster as a setting (`--units=metric|imperial`,
+or per-quantity), applied where the numeral is formatted, with the gauge
+scales (a 0-160 mph ring instead of 0-260 km/h) following it. The cluster
+has no such setting today; it is a UI item, not a transport one.
