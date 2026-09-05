@@ -258,6 +258,16 @@ in the workspace). What its lamps have that the cluster's do not:
   bottom centre, seatbelt/airbag/door at the top, lighting lamps (green)
   as a pair, ESC and TPMS as a pair; two short rows, not one long line.
 
+**Done, 2026-09-05.** A Figma "vehicle telltale icon pack" turned out to
+hold all twenty lamps in exactly this style (ISO shapes, one stroke weight,
+lamp colours), so instead of redrawing, `qt-cluster-demo` now cuts the
+lamps from the pack's sheets (`tools/extract-telltales.py`, pack checked in
+under `resources/telltales/source/`) into the file names the row has always
+used, at 2x, with a pre-baked `-glow.png` halo per lamp and a contact sheet
+for review. `TelltaleIcon` draws the halo beneath a lit lamp with a 60 ms
+ease; ghost, blink, bulb check, row and themes unchanged. The two
+subsections below are kept as the reasoning; the "later" items still stand.
+
 ### What can be done without touching code or behaviour
 
 Everything below keeps the file names, the bit table in `TelltaleRow`, the
